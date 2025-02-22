@@ -1,13 +1,14 @@
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import torch
 import matplotlib.pyplot as plt
+from automate_google_search import fetch_vision_mission
 
-save_directory = "./finbert_model"  # Ensure this directory exists or use a pretrained model like 'yiyanghkust/finbert'
+# Load FinBERT model and tokenizer
+save_directory = "./finbert_model"
 tokenizer = AutoTokenizer.from_pretrained(save_directory)
 model = AutoModelForSequenceClassification.from_pretrained(save_directory)
 
 print("Model and tokenizer loaded from local storage!")
-
 
 def analyze_sentiment(text):
     """Performs sentiment analysis using FinBERT."""
@@ -34,7 +35,7 @@ def overall_sentiment(sentences):
     """Aggregates sentiment scores to get an overall classification."""
     total_scores = {"negative": 0, "neutral": 0, "positive": 0}
 
-    for scores in sentences.values():  # Fix: Only pass the score dictionary
+    for scores in sentences.values():
         for key in total_scores:
             total_scores[key] += scores[key]
 
@@ -43,58 +44,31 @@ def overall_sentiment(sentences):
 
     return interpret_sentiment(avg_scores), avg_scores
 
+def plot_sentiment(title, scores):
+    """Plots sentiment distribution."""
+    labels = list(scores.keys())
+    values = list(scores.values())
 
-# def plot_sentiment(title, scores):
-#     """Plots sentiment distribution."""
-#     labels = list(scores.keys())
-#     values = list(scores.values())
-
-#     plt.figure(figsize=(6, 4))
-#     plt.bar(labels, values, color=["red", "gray", "green"])
-#     plt.xlabel("Sentiment")
-#     plt.ylabel("Score")
-#     plt.title(f"{title} Sentiment Distribution")
-#     plt.show()
-
+    plt.figure(figsize=(6, 4))
+    plt.bar(labels, values, color=["red", "gray", "green"])
+    plt.xlabel("Sentiment")
+    plt.ylabel("Score")
+    plt.title(f"{title} Sentiment Distribution")
+    plt.show()
 
 if __name__ == "__main__":
-    # Example Vision & Mission statements
-    vision_sentences = [
-        "Inspire the world with innovative products and technologies",
-        "Create a new future where technology enhances lives",
-        "Set trends and drive industry transformations",
-        "Be a leading brand that people love"
-    ]
+    company = input("Enter the company name: ")
+    result = fetch_vision_mission(company)
 
-    mission_sentences = [
-        "Enhance people's lives through innovative technologies and designs",
-        "Create the best products and services",
-        "Contribute to a better global society",
-        "Support people to be their best"
-    ]
+    if result and result["vision_mission"]:
+        vision_mission_text = result["vision_mission"]
+        print("\n📌 Extracted Vision & Mission Statement:")
+        print(f"🟣 {vision_mission_text}\n")
 
-    # Analyze vision and mission separately
-    vision_results = {sentence: analyze_sentiment(sentence) for sentence in vision_sentences}
-    mission_results = {sentence: analyze_sentiment(sentence) for sentence in mission_sentences}
+        sentiment_label, sentiment_scores = analyze_sentiment(vision_mission_text)
+        print(f"📊 Sentiment Analysis Result: {sentiment_label}")
+        print(f"Detailed Scores: {sentiment_scores}")
 
-    # Recalculate Final Sentiments
-    final_vision_results = {
-        sentence: (interpret_sentiment(scores), scores) for sentence, (_, scores) in vision_results.items()
-    }
-    final_mission_results = {
-        sentence: (interpret_sentiment(scores), scores) for sentence, (_, scores) in mission_results.items()
-    }
-
-    # Compute Overall Sentiment
-    final_vision_sentiment, avg_vision_scores = overall_sentiment(final_vision_results)
-    final_mission_sentiment, avg_mission_scores = overall_sentiment(final_mission_results)
-
-    # Print Results
-    print("Final Vision Sentiments:", final_vision_results)
-    print("Final Mission Sentiments:", final_mission_results)
-    print("\nOverall Vision Sentiment:", final_vision_sentiment, avg_vision_scores)
-    print("Overall Mission Sentiment:", final_mission_sentiment, avg_mission_scores)
-
-    # Plot Sentiment Distributions
-    plot_sentiment("Vision", avg_vision_scores)
-    plot_sentiment("Mission", avg_mission_scores)
+        plot_sentiment("Vision-Mission", sentiment_scores)
+    else:
+        print("❌ No valid Vision & Mission statement found!")
