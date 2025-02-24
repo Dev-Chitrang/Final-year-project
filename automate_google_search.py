@@ -10,62 +10,56 @@ def fetch_vision_mission(company_name, num_results=5):
 
     # Step 1: Google Search Query
     query = f"{company_name} company vision and mission statement"
-    print(f"🔍 Searching for Vision & Mission of: {company_name}...\n")
+    print(f"\U0001F50D Searching for Vision & Mission of: {company_name}...\n")
 
     # Step 2: Get Search Results from Google
     search_results = list(search(query, num_results=num_results))
 
-    first_url = None
     for url in search_results:
         if url.startswith("http"):  # Ensure it's a valid URL
-            first_url = url
-            break
+            print(f"\U0001F517 Extracting from: {url}\n")
 
-    if not first_url:
-        print("❌ No valid search results found!")
-        return None
+            # Step 3: Fetch Web Page
+            headers = {"User-Agent": user_agent}
+            response = requests.get(url, headers=headers)
 
-    print(f"🔗 Extracting from: {first_url}\n")
+            if response.status_code != 200:
+                print("❌ Failed to fetch page! Trying next result...")
+                continue
 
-    # Step 3: Fetch Web Page
-    headers = {"User-Agent": user_agent}
-    response = requests.get(first_url, headers=headers)
+            soup = BeautifulSoup(response.text, "html.parser")
+            text = soup.get_text(separator=" ")
 
-    if response.status_code != 200:
-        print("❌ Failed to fetch page!")
-        return None
+            # Step 4: Extract Vision & Mission using Improved Regex
+            vision_pattern = re.search(r"(?:vision|our vision|company vision)[\s\S]{0,50}[:\n]+(.*?)(?=\.\s|\n|$)", text, re.IGNORECASE)
+            mission_pattern = re.search(r"(?:mission|our mission|company mission)[\s\S]{0,50}[:\n]+(.*?)(?=\.\s|\n|$)", text, re.IGNORECASE)
 
-    soup = BeautifulSoup(response.text, "html.parser")
-    text = soup.get_text(separator=" ")
+            vision = vision_pattern.group(1).strip() if vision_pattern else None
+            mission = mission_pattern.group(1).strip() if mission_pattern else None
 
-    # Step 4: Extract Vision & Mission using Regex
-    vision_pattern = re.search(r"vision(?: statement)?[:\s]+(.*?)(?=\.\s|$)", text, re.IGNORECASE)
-    mission_pattern = re.search(r"mission(?: statement)?[:\s]+(.*?)(?=\.\s|$)", text, re.IGNORECASE)
+            # Step 5: Extract from HTML Tags as Backup
+            headings = soup.find_all(['h1', 'h2', 'h3', 'strong', 'b'])
+            for heading in headings:
+                if "vision" in heading.text.lower() and not vision:
+                    vision = heading.find_next('p').text.strip() if heading.find_next('p') else None
+                if "mission" in heading.text.lower() and not mission:
+                    mission = heading.find_next('p').text.strip() if heading.find_next('p') else None
 
-    vision = vision_pattern.group(1).strip() if vision_pattern else None
-    mission = mission_pattern.group(1).strip() if mission_pattern else None
+            # Step 6: Clean Up Extracted Text
+            unwanted_phrases = ["home", ">", "companies", "mission and vision statement"]
+            if vision:
+                for phrase in unwanted_phrases:
+                    vision = vision.replace(phrase, "").strip()
+            if mission:
+                for phrase in unwanted_phrases:
+                    mission = mission.replace(phrase, "").strip()
 
-    # Step 5: Remove Irrelevant Data
-    unwanted_phrases = ["home", ">", "companies", "mission and vision statement"]
-    
-    if vision:
-        for phrase in unwanted_phrases:
-            vision = vision.replace(phrase, "").strip()
-    
-    if mission:
-        for phrase in unwanted_phrases:
-            mission = mission.replace(phrase, "").strip()
+            # Step 7: Combine Vision & Mission
+            if vision or mission:
+                combined_statement = f"{mission} {vision}" if mission and vision else vision or mission
+                return {"vision_mission": combined_statement}
 
-    # Step 6: Combine Vision & Mission
-    combined_statement = None
-    if vision and mission:
-        combined_statement = f"{mission} {vision}"
-    elif vision:
-        combined_statement = vision
-    elif mission:
-        combined_statement = mission
-
-    return {"vision_mission": combined_statement}
+    return None
 
 # Input Company Name
 if __name__ == "__main__":

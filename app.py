@@ -166,15 +166,16 @@ def get_credit_rating(ticker: str):
 
 @app.post("/investment-analysis")
 def get_expert_advice():
+    print(stored_data)
     try:
-        required_keys = {"credit_rating", "news_sentiment", "stock_trend", "overall_vm_sentiment"}
+        required_keys = {"stock_trend", "credit_rating", "vision_mission_sentiment", "news_sentiment"}
         if not required_keys.issubset(stored_data):
             raise HTTPException(status_code=400, detail="Missing required data for investment analysis")
         return {"investment_decision": get_investment_advice(
             stored_data["credit_rating"],
-            stored_data["news_sentiment"]["overall_sentiment"],
-            stored_data["stock_trend"]["current_trend"],
-            stored_data["overall_vm_sentiment"]
+            stored_data["news_sentiment"],
+            stored_data["stock_trend"],
+            stored_data["vision_mission_sentiment"]
         )}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
